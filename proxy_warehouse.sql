@@ -1,17 +1,17 @@
 /*
  Navicat MySQL Data Transfer
 
- Source Server         : localhost_3306
+ Source Server         : 47.112.15.58
  Source Server Type    : MySQL
- Source Server Version : 80011
- Source Host           : localhost:3306
+ Source Server Version : 80017
+ Source Host           : 47.112.15.58:3306
  Source Schema         : proxy_warehouse
 
  Target Server Type    : MySQL
- Target Server Version : 80011
+ Target Server Version : 80017
  File Encoding         : 65001
 
- Date: 06/10/2019 17:15:15
+ Date: 08/10/2019 20:02:22
 */
 
 SET NAMES utf8mb4;
@@ -29,7 +29,7 @@ CREATE TABLE `proxy_info`  (
   `enqueue` timestamp(0) NOT NULL DEFAULT CURRENT_TIMESTAMP(0),
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `proxy_ip`(`proxy_ip`, `proxy_port`) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 3891 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 4413 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for usage_log
@@ -44,13 +44,13 @@ CREATE TABLE `usage_log`  (
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `usage_proxy`(`proxy_id`) USING BTREE,
   CONSTRAINT `usage_proxy` FOREIGN KEY (`proxy_id`) REFERENCES `proxy_info` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
-) ENGINE = InnoDB AUTO_INCREMENT = 11202 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 270427 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
--- View structure for high_availability_proxy
+-- View structure for HIA
 -- ----------------------------
-DROP VIEW IF EXISTS `high_availability_proxy`;
-CREATE ALGORITHM = UNDEFINED SQL SECURITY DEFINER VIEW `high_availability_proxy` AS select `usage_log`.`proxy_id` AS `proxy_id`,`proxy_info`.`proxy_ip` AS `proxy_ip`,`proxy_info`.`proxy_port` AS `proxy_port`,count(`usage_log`.`proxy_id`) AS `number_of_successful`,avg(`usage_log`.`elapsed_time`) AS `avg_elapsed`,`t`.`number_of_use` AS `number_of_use` from ((`usage_log` join (select `usage_log`.`proxy_id` AS `proxy_id`,count(`usage_log`.`proxy_id`) AS `number_of_use` from `usage_log` group by `usage_log`.`proxy_id`) `t`) join `proxy_info`) where ((`usage_log`.`elapsed_time` > 0) and (`t`.`proxy_id` = `usage_log`.`proxy_id`) and (`usage_log`.`proxy_id` = `proxy_info`.`id`)) group by `usage_log`.`proxy_id` order by (count(`usage_log`.`proxy_id`) / `t`.`number_of_use`) desc,avg(`usage_log`.`elapsed_time`),`t`.`number_of_use`;
+DROP VIEW IF EXISTS `HIA`;
+CREATE ALGORITHM = UNDEFINED SQL SECURITY DEFINER VIEW `HIA` AS select `proxy_info`.`id` AS `proxy_id`,`proxy_info`.`proxy_ip` AS `proxy_ip`,`proxy_info`.`proxy_port` AS `proxy_port`,`t`.`avg_elapsed` AS `avg_elapsed`,`t`.`last_check` AS `last_check`,`t`.`number_of_successful` AS `number_of_successful`,`t`.`number_of_use` AS `number_of_use`,(`t`.`number_of_successful` / `t`.`number_of_use`) AS `rate` from (`proxy_info` join (select `ta`.`proxy_id` AS `proxy_id`,avg(`ta`.`elapsed_time`) AS `avg_elapsed`,max(`ta`.`start_time`) AS `last_check`,count(`ta`.`proxy_id`) AS `number_of_successful`,`tb`.`used_times` AS `number_of_use` from (`usage_log` `ta` join (select `usage_log`.`proxy_id` AS `proxy_id`,count(`usage_log`.`id`) AS `used_times` from `usage_log` where (`usage_log`.`start_time` between (now() - 10000) and now()) group by `usage_log`.`proxy_id`) `tb`) where ((`ta`.`elapsed_time` > 0) and (`tb`.`proxy_id` = `ta`.`proxy_id`) and (`ta`.`start_time` between (now() - 10000) and now())) group by `ta`.`proxy_id`) `t`) where (`proxy_info`.`id` = `t`.`proxy_id`) order by (`t`.`number_of_successful` / `t`.`number_of_use`) desc;
 
 -- ----------------------------
 -- Procedure structure for Insert_proxy
@@ -77,7 +77,7 @@ CREATE PROCEDURE `Select_HIA`(IN `amount` int)
 BEGIN
 	#Routine body goes here...
 	select proxy_id, proxy_ip, proxy_port
-	from high_availability_proxy
+	from HIA
 	limit amount;
 END
 ;;

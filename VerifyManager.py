@@ -57,6 +57,7 @@ class VerifyManager(Process):
                     log_writer(v.proxy.id, v.delta_time)
                     self.verify_pool.remove(v)
                     SPIDER_Semaphore.release()
+            time.sleep(1)
 
     def terminate(self):
         log_writer("verify manager exit")

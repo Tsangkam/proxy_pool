@@ -57,7 +57,7 @@ class ProxyManager(Process):
         try:
             cursor.callproc('Insert_proxy', args=proxy_info)
         except pymysql.err.IntegrityError:
-            log_writer(proxy_info, 'duplicate')
+            # log_writer(proxy_info, 'duplicate')
             return False
         finally:
             cursor.close()
